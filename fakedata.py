@@ -3,6 +3,8 @@ import random
 import threading
 import time
 
+import pythonosc.udp_client
+
 def get_random_hr():
 	return random.normalvariate(80, 15)
 
@@ -19,16 +21,20 @@ def hr_beat_thread(q, beat):
 		if st > 0: time.sleep(st)
 		beat()
 
-last_tick_time = time.monotonic()
-def beat():
-	global last_tick_time
-	now = time.monotonic()
-	dt = now - last_tick_time
-	last_tick_time = now
-	print("tick %.2f (%.3f)" % (60/dt, dt))
-
 def main():
+	osc_client = pythonosc.udp_client.SimpleUDPClient('10.88.0.16', 11543)
 	baseline_exp = 0
+
+	last_tick_time = time.monotonic()
+	def beat():
+		nonlocal last_tick_time
+		now = time.monotonic()
+		dt = now - last_tick_time
+		last_tick_time = now
+
+		bpm = 60 / dt
+		print("tick %.2f (%.3f)" % (bpm, dt))
+		osc_client.send_message('/heartbeat', bpm)
 
 	hr_beat_queue = queue.Queue()
 	threading.Thread(target=hr_beat_thread, args=(hr_beat_queue, beat)).start()
